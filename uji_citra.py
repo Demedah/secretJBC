@@ -53,51 +53,60 @@ def ekstrak_fitur_gambar(img_input):
         return None
 
 # ============ 2) Load Dataset dari GitHub ============
-image_dir = "Extraksi"
-df = pd.read_csv("databaseJBC.csv")
+# ============ 2) Load Dataset & Augmentasi ============
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import os
 
-import ast
-import numpy as np
+image_dir = "Extraksi"   # folder gambar mentah
+
+# Setup augmentor
+datagen = ImageDataGenerator(
+    rotation_range=20,        # rotasi acak max 20 derajat
+    width_shift_range=0.1,    # geser horizontal max 10%
+    height_shift_range=0.1,   # geser vertikal max 10%
+    shear_range=0.1,          # shear transformation
+    zoom_range=0.1,           # zoom in/out
+    horizontal_flip=True,     # flip kiri-kanan
+    fill_mode="nearest"       # isi area kosong setelah rotasi/geser
+)
 
 X, y = [], []
-for idx, row in df.iterrows():
-    try:
-        fitur = ast.literal_eval(row["pixel_features"])
-        fitur = [float(v) for v in fitur]   # pastikan float
-        X.append(fitur)
-        y.append(row["Tekstur Kulit"])
-    except Exception as e:
-        print(f"Row {idx} error: {e}")
 
+for idx, row in df.iterrows():
+    if pd.isna(row["FotoCS"]): 
+        continue
+
+    img_path = os.path.join(image_dir, row["FotoCS"])
+    img = cv2.imread(img_path)
+
+    if img is None:
+        continue
+
+    # resize ke ukuran konsisten
+    img = cv2.resize(img, (128, 128))
+    img_expanded = np.expand_dims(img, axis=0)  # tambah batch dimensi
+
+    # ekstrak fitur dari gambar asli (non-augmentasi)
+    fitur_asli = ekstrak_fitur_gambar(img)
+    if fitur_asli is not None:
+        X.append(fitur_asli)
+        y.append(row["Tekstur Kulit"])
+
+    # augmentasi -> generate N variasi per gambar
+    aug_iter = datagen.flow(img_expanded, batch_size=1)
+    for i in range(5):  # 5 variasi augmentasi
+        aug_img = next(aug_iter)[0].astype("uint8")  # ambil hasil augment
+        fitur_aug = ekstrak_fitur_gambar(aug_img)
+        if fitur_aug is not None:
+            X.append(fitur_aug)
+            y.append(row["Tekstur Kulit"])
+
+# ubah ke array numpy
 X = np.array(X, dtype=float)
 y = np.array(y)
-print("Final shape X:", X.shape)
 
+print("Jumlah data setelah augmentasi:", X.shape, len(y))
 
-# 3. Encode label y
-le = LabelEncoder()
-y = le.fit_transform(y)
-
-# 4. Split dataset (kalau cukup besar)
-if len(X) >= 5:
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
-else:
-    print("⚠️ Dataset kecil, semua dipakai training.")
-    X_train, y_train = X, y
-    X_test, y_test = X, y
-
-# 5. Train RandomForest
-model = RandomForestClassifier(n_estimators=100, random_state=42)
-model.fit(X_train, y_train)
-
-# 6. Evaluasi
-if len(X_test) > 0:
-    y_pred = model.predict(X_test)
-    acc = accuracy_score(y_test, y_pred)
-    print("Akurasi:", acc)
-    
 # ============ 3) Streamlit UI ============
 st.title("Klasifikasi Jenis Kulit Wajah - Jiabao Clinic")
 st.write(f"Akurasi Model: **{acc:.2f}**")
