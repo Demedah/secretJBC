@@ -5,11 +5,9 @@ import cv2
 import numpy as np
 import pandas as pd
 import os
-import matplotlib.pyplot as plt
-import seaborn as sns
 from skimage.feature import graycomatrix, graycoprops
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -52,15 +50,11 @@ def ekstrak_fitur_gambar(img_input):
     except:
         return None
 
-# ============ 2) Load Dataset & Augmentasi ============
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-import os
 
-# Load CSV
+# ============ 2) Load Dataset & Augmentasi ============
 df = pd.read_csv("databaseJBC.csv")
 image_dir = "Extraksi"   # folder tempat gambar disimpan
 
-# Augmentasi generator
 datagen = ImageDataGenerator(
     rotation_range=20,
     width_shift_range=0.1,
@@ -79,7 +73,6 @@ for idx, row in df.iterrows():
 
     img_path = os.path.join(image_dir, file_name)
     if not os.path.exists(img_path):
-        print(f"File {img_path} tidak ditemukan, skip...")
         continue
 
     img = cv2.imread(img_path)
@@ -94,7 +87,7 @@ for idx, row in df.iterrows():
         X.append(fitur_asli)
         y.append(label)
 
-    # augmentasi → hasilkan 5 variasi per gambar
+    # augmentasi (5 variasi per gambar)
     img_expanded = np.expand_dims(img, axis=0)
     aug_iter = datagen.flow(img_expanded, batch_size=1)
     for i in range(5):
@@ -108,10 +101,13 @@ X = np.array(X, dtype=float)
 y = np.array(y)
 print("Jumlah data setelah augmentasi:", X.shape, len(y))
 
-if len(X) > 5:  
-    from sklearn.model_selection import train_test_split
+# ============ 3) Label Encoding + Training ============
+if len(X) > 5:
+    le = LabelEncoder()
+    y_encoded = le.fit_transform(y)
+
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+        X, y_encoded, test_size=0.2, random_state=42
     )
 
     model = RandomForestClassifier(n_estimators=100, random_state=42)
@@ -120,48 +116,38 @@ if len(X) > 5:
     y_pred = model.predict(X_test)
     acc = accuracy_score(y_test, y_pred)
 else:
-    model = None
+    model, le = None, None
     acc = 0.0
 
 
-# ============ 3) Streamlit UI ============
+# ============ 4) Streamlit UI ============
 st.title("Klasifikasi Jenis Kulit Wajah - Jiabao Clinic")
 st.write(f"Akurasi Model: **{acc:.2f}**")
 
 uploaded_file = st.file_uploader("Upload Foto Wajah", type=["jpg", "png", "jpeg"])
 
-if uploaded_file is not None:
-    # Baca gambar
+if uploaded_file is not None and model is not None:
     file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
     img = cv2.imdecode(file_bytes, 1)
 
     st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB),
              caption="Gambar diupload", use_column_width=True)
 
-    # Ekstrak fitur dari gambar
     fitur = ekstrak_fitur_gambar(img)
     if fitur is not None:
         expected_len = model.n_features_in_
 
-        # Debug info
-        st.sidebar.write(f"📊 Fitur model: {expected_len}")
-        st.sidebar.write(f"📊 Fitur input: {len(fitur)}")
-
-        # Jika fitur terlalu panjang -> potong
         if len(fitur) > expected_len:
             fitur = fitur[:expected_len]
-        # Jika fitur terlalu pendek -> padding dengan nol
         elif len(fitur) < expected_len:
             fitur = list(fitur) + [0.0] * (expected_len - len(fitur))
 
-        # Prediksi dengan model
-        pred = model.predict([fitur])[0]
+        pred_encoded = model.predict([fitur])[0]
+        pred_label = le.inverse_transform([pred_encoded])[0]
         probs = model.predict_proba([fitur])[0]
 
-        # Tampilkan hasil prediksi
-        st.success(f"Prediksi Jenis Kulit: **{pred}**")
+        st.success(f"Prediksi Jenis Kulit: **{pred_label}**")
 
-        # Tampilkan probabilitas
         prob_df = pd.DataFrame({
             "Kelas": le.classes_,
             "Probabilitas": probs
@@ -172,4 +158,3 @@ if uploaded_file is not None:
 
     else:
         st.error("⚠️ Gagal ekstrak fitur dari gambar yang diupload.")
-
