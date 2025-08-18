@@ -55,7 +55,7 @@ def ekstrak_fitur_gambar(img_input):
 # ============ 2) Load Dataset dari GitHub ============
 image_dir = "Extraksi/main/"
 
-df = pd.read_csv("data.csv")
+df = pd.read_csv("databaseJBC.csv")
 
 
 X, y = [], []
