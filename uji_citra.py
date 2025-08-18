@@ -1,4 +1,6 @@
 # uji_citra.py
+opencv-python-headless
+
 import streamlit as st
 import cv2
 import numpy as np
