@@ -75,7 +75,7 @@ X, y = [], []
 
 for idx, row in df.iterrows():
     file_name = row["FotoCS"]
-    label = row["Tektur Kulit"]   
+    label = row["Tekstur Kulit"]   
 
     img_path = os.path.join(image_dir, file_name)
     if not os.path.exists(img_path):
