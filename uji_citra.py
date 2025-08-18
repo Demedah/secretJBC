@@ -56,22 +56,31 @@ def ekstrak_fitur_gambar(img_input):
 image_dir = "Extraksi"
 df = pd.read_csv("databaseJBC.csv")
 
+import ast
+import numpy as np
+
 X, y = [], []
 for idx, row in df.iterrows():
     try:
-        # ubah string "[49, 48, 46, ...]" -> list [49,48,46,...]
+        # parsing string jadi list
         fitur = ast.literal_eval(row["pixel_features"])
-        X.append(fitur)
-        y.append(row["Tekstur Kulit"])
+
+        # memastikan semua elemen angka (float/int)
+        fitur = [float(v) for v in fitur]
+
+        # agar panjang fitur konsisten
+        if len(fitur) == 256:   # contoh: 256 fitur
+            X.append(fitur)
+            y.append(row["Tekstur Kulit"])
+        else:
+            print(f"⚠️ Row {idx} dilewati, fitur panjang {len(fitur)}")
     except Exception as e:
         print(f"⚠️ Error parsing row {idx}: {e}")
 
-# 2. Convert ke numpy
 X = np.array(X, dtype=float)
 y = np.array(y)
-
 print("Shape X:", X.shape)
-print("Shape y:", y.shape)
+
 
 # 3. Encode label y
 le = LabelEncoder()
