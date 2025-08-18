@@ -130,8 +130,12 @@ if uploaded_file is not None and model is not None:
     file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
     img = cv2.imdecode(file_bytes, 1)
 
-    st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB),
-             caption="Gambar diupload", use_column_width=True)
+st.image(
+    cv2.cvtColor(img, cv2.COLOR_BGR2RGB),
+    caption="Gambar diupload",
+    use_container_width=True
+)
+
 
     fitur = ekstrak_fitur_gambar(img)
     if fitur is not None:
