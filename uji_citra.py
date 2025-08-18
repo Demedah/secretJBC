@@ -52,59 +52,60 @@ def ekstrak_fitur_gambar(img_input):
     except:
         return None
 
-# ============ 2) Load Dataset dari GitHub ============
 # ============ 2) Load Dataset & Augmentasi ============
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import os
 
-image_dir = "Extraksi"   # folder gambar mentah
+# Load CSV
+df = pd.read_csv("databaseJBC.csv")
+image_dir = "Extraksi"   # folder tempat gambar disimpan
 
-# Setup augmentor
+# Augmentasi generator
 datagen = ImageDataGenerator(
-    rotation_range=20,        # rotasi acak max 20 derajat
-    width_shift_range=0.1,    # geser horizontal max 10%
-    height_shift_range=0.1,   # geser vertikal max 10%
-    shear_range=0.1,          # shear transformation
-    zoom_range=0.1,           # zoom in/out
-    horizontal_flip=True,     # flip kiri-kanan
-    fill_mode="nearest"       # isi area kosong setelah rotasi/geser
+    rotation_range=20,
+    width_shift_range=0.1,
+    height_shift_range=0.1,
+    shear_range=0.1,
+    zoom_range=0.1,
+    horizontal_flip=True,
+    fill_mode="nearest"
 )
 
 X, y = [], []
 
 for idx, row in df.iterrows():
-    if pd.isna(row["FotoCS"]): 
+    file_name = row["FotoCS"]
+    label = row["tektur kulit"]   # pastikan sesuai nama kolom (cek huruf besar/kecil)
+
+    img_path = os.path.join(image_dir, file_name)
+    if not os.path.exists(img_path):
+        print(f"File {img_path} tidak ditemukan, skip...")
         continue
 
-    img_path = os.path.join(image_dir, row["FotoCS"])
     img = cv2.imread(img_path)
-
     if img is None:
         continue
 
-    # resize ke ukuran konsisten
     img = cv2.resize(img, (128, 128))
-    img_expanded = np.expand_dims(img, axis=0)  # tambah batch dimensi
 
-    # ekstrak fitur dari gambar asli (non-augmentasi)
+    # fitur asli
     fitur_asli = ekstrak_fitur_gambar(img)
     if fitur_asli is not None:
         X.append(fitur_asli)
-        y.append(row["Tekstur Kulit"])
+        y.append(label)
 
-    # augmentasi -> generate N variasi per gambar
+    # augmentasi → hasilkan 5 variasi per gambar
+    img_expanded = np.expand_dims(img, axis=0)
     aug_iter = datagen.flow(img_expanded, batch_size=1)
-    for i in range(5):  # 5 variasi augmentasi
-        aug_img = next(aug_iter)[0].astype("uint8")  # ambil hasil augment
+    for i in range(5):
+        aug_img = next(aug_iter)[0].astype("uint8")
         fitur_aug = ekstrak_fitur_gambar(aug_img)
         if fitur_aug is not None:
             X.append(fitur_aug)
-            y.append(row["Tekstur Kulit"])
+            y.append(label)
 
-# ubah ke array numpy
 X = np.array(X, dtype=float)
 y = np.array(y)
-
 print("Jumlah data setelah augmentasi:", X.shape, len(y))
 
 # ============ 3) Streamlit UI ============
