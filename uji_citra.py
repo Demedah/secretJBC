@@ -53,11 +53,9 @@ def ekstrak_fitur_gambar(img_input):
         return None
 
 # ============ 2) Load Dataset dari GitHub ============
-
+# ============ 2) Load Dataset dari GitHub ============
 image_dir = "Extraksi"
 df = pd.read_csv("databaseJBC.csv")
-
-
 
 X, y = [], []
 for idx, row in df.iterrows():
@@ -77,11 +75,26 @@ for idx, row in df.iterrows():
 X = np.array(X)
 y = np.array(y)
 
+# 🔑 Encode label (sebelum split)
+le = LabelEncoder()
+y = le.fit_transform(y)   # semua label string diubah ke angka
+
 # Split & Train
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+if len(X) < 5:
+    # fallback kalau dataset terlalu kecil
+    X_train, y_train = X, y
+    X_test, y_test = X, y
+else:
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+
 model = RandomForestClassifier(n_estimators=100, random_state=42)
 model.fit(X_train, y_train)
+
+# Hitung akurasi
 acc = accuracy_score(y_test, model.predict(X_test))
+print("Akurasi:", acc)
 
 # LabelEncoder untuk prediksi baru
 le = LabelEncoder()
