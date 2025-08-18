@@ -53,53 +53,50 @@ def ekstrak_fitur_gambar(img_input):
         return None
 
 # ============ 2) Load Dataset dari GitHub ============
-# ============ 2) Load Dataset dari GitHub ============
 image_dir = "Extraksi"
 df = pd.read_csv("databaseJBC.csv")
 
 X, y = [], []
 for idx, row in df.iterrows():
-    if pd.isna(row["FotoCS"]): 
-        continue
-    img_url = image_dir + row["FotoCS"]
     try:
-        img = cv2.imdecode(np.frombuffer(
-            __import__('urllib.request').urlopen(img_url).read(), np.uint8), 1)
-        fitur = ekstrak_fitur_gambar(img)
-        if fitur is not None:
-            X.append(fitur)
-            y.append(row["Tekstur Kulit"])
-    except:
-        pass
+        # ubah string "[49, 48, 46, ...]" -> list [49,48,46,...]
+        fitur = ast.literal_eval(row["pixel_features"])
+        X.append(fitur)
+        y.append(row["Tekstur Kulit"])
+    except Exception as e:
+        print(f"⚠️ Error parsing row {idx}: {e}")
 
-X = np.array(X)
+# 2. Convert ke numpy
+X = np.array(X, dtype=float)
 y = np.array(y)
 
-# 🔑 Encode label (sebelum split)
-le = LabelEncoder()
-y = le.fit_transform(y)   # semua label string diubah ke angka
+print("Shape X:", X.shape)
+print("Shape y:", y.shape)
 
-# Split & Train
-if len(X) < 5:
-    # fallback kalau dataset terlalu kecil
-    X_train, y_train = X, y
-    X_test, y_test = X, y
-else:
+# 3. Encode label y
+le = LabelEncoder()
+y = le.fit_transform(y)
+
+# 4. Split dataset (kalau cukup besar)
+if len(X) >= 5:
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
+else:
+    print("⚠️ Dataset kecil, semua dipakai training.")
+    X_train, y_train = X, y
+    X_test, y_test = X, y
 
+# 5. Train RandomForest
 model = RandomForestClassifier(n_estimators=100, random_state=42)
 model.fit(X_train, y_train)
 
-# Hitung akurasi
-acc = accuracy_score(y_test, model.predict(X_test))
-print("Akurasi:", acc)
-
-# LabelEncoder untuk prediksi baru
-le = LabelEncoder()
-le.fit(y)
-
+# 6. Evaluasi
+if len(X_test) > 0:
+    y_pred = model.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+    print("Akurasi:", acc)
+    
 # ============ 3) Streamlit UI ============
 st.title("Klasifikasi Jenis Kulit Wajah - Jiabao Clinic")
 st.write(f"Akurasi Model: **{acc:.2f}**")
