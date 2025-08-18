@@ -54,9 +54,8 @@ def ekstrak_fitur_gambar(img_input):
 
 # ============ 2) Load Dataset dari GitHub ============
 
-image_dir = "https://github.com/Demedah/secretJBC/tree/main/Extraksi"
-url = "https://github.com/Demedah/secretJBC/blob/main/databaseJBC.csv"
-df = pd.read_csv(url)
+image_dir = "Extraksi"
+df = pd.read_csv(databaseJBC.csv)
 
 
 
