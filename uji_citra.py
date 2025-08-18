@@ -53,10 +53,10 @@ def ekstrak_fitur_gambar(img_input):
         return None
 
 # ============ 2) Load Dataset dari GitHub ============
-csv_url = "https://raw.githubusercontent.com/secretJBC/Extraksi/main/databaseJBC.csv"
-image_dir = "https://raw.githubusercontent.com/secretJBC/Extraksi/main/"
+image_dir = "Extraksi/main/"
 
-df = pd.read_csv(csv_url)
+df = pd.read_csv("data.csv")
+
 
 X, y = [], []
 for idx, row in df.iterrows():
