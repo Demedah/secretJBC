@@ -230,7 +230,3 @@ if uploaded_file is not None and model is not None:
 
     else:
         st.error("⚠️ Gagal ekstrak fitur dari gambar yang diupload.")
-
-
-    else:
-        st.error("⚠️ Gagal ekstrak fitur dari gambar yang diupload.")
