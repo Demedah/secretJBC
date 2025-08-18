@@ -202,7 +202,8 @@ if uploaded_file is not None and model is not None:
             """,
             unsafe_allow_html=True
         )
-
+        # Normalisasi label jadi huruf kecil
+        label_lower = pred_label.lower()
         if "Oily" in pred_label:
             st.markdown("""
             - ✨ **Chemical Peeling (AHA/BHA peeling)** → mengurangi minyak & membersihkan pori.  
