@@ -105,25 +105,45 @@ st.write(f"Akurasi Model: **{acc:.2f}**")
 uploaded_file = st.file_uploader("Upload Foto Wajah", type=["jpg", "png", "jpeg"])
 
 if uploaded_file is not None:
+    # Baca gambar
     file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
     img = cv2.imdecode(file_bytes, 1)
 
-    st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), caption="Gambar diupload", use_column_width=True)
+    st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB),
+             caption="Gambar diupload", use_column_width=True)
 
+    # Ekstrak fitur dari gambar
     fitur = ekstrak_fitur_gambar(img)
     if fitur is not None:
+        expected_len = model.n_features_in_
+
+        # Debug info
+        st.sidebar.write(f"📊 Fitur model: {expected_len}")
+        st.sidebar.write(f"📊 Fitur input: {len(fitur)}")
+
+        # Jika fitur terlalu panjang -> potong
+        if len(fitur) > expected_len:
+            fitur = fitur[:expected_len]
+        # Jika fitur terlalu pendek -> padding dengan nol
+        elif len(fitur) < expected_len:
+            fitur = list(fitur) + [0.0] * (expected_len - len(fitur))
+
+        # Prediksi dengan model
         pred = model.predict([fitur])[0]
         probs = model.predict_proba([fitur])[0]
 
+        # Tampilkan hasil prediksi
         st.success(f"Prediksi Jenis Kulit: **{pred}**")
 
+        # Tampilkan probabilitas
         prob_df = pd.DataFrame({
             "Kelas": le.classes_,
             "Probabilitas": probs
         }).sort_values("Probabilitas", ascending=False)
 
         st.dataframe(prob_df)
-
         st.bar_chart(prob_df.set_index("Kelas"))
+
     else:
-        st.error("Gagal ekstrak fitur dari gambar yang diupload.")
+        st.error("⚠️ Gagal ekstrak fitur dari gambar yang diupload.")
+
