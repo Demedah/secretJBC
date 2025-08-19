@@ -136,7 +136,7 @@ if uploaded_file is not None:
         pred_label = le.inverse_transform([pred_encoded])[0]
         probs = model.predict_proba([fitur])[0]
 
-                st.success(f"🎯 Prediksi Jenis Kulit: **{pred_label}**")
+        st.success(f"🎯 Prediksi Jenis Kulit: **{pred_label}**")
 
         prob_df = pd.DataFrame({"Skin Type": le.classes_, "Probability": probs})
         fig_prob = px.bar(prob_df, x="Probability", y="Skin Type", orientation='h',
