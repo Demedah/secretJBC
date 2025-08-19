@@ -136,13 +136,13 @@ if uploaded_file is not None:
         pred_label = le.inverse_transform([pred_encoded])[0]
         probs = model.predict_proba([fitur])[0]
 
-        st.success(f"🎯 Prediksi Jenis Kulit: **{pred_label}**")
+                st.success(f"🎯 Prediksi Jenis Kulit: **{pred_label}**")
 
         prob_df = pd.DataFrame({"Skin Type": le.classes_, "Probability": probs})
         fig_prob = px.bar(prob_df, x="Probability", y="Skin Type", orientation='h',
                           title="Confidence Prediction", color="Probability", color_continuous_scale="viridis")
         st.plotly_chart(fig_prob, use_container_width=True)
-
+        
         skin_info = {
             "dry": "Kulit kering: cenderung kasar, mudah pecah-pecah, butuh pelembap ekstra.",
             "oily": "Kulit berminyak: mudah berjerawat, perlu pembersih yang mengontrol minyak.",
@@ -150,3 +150,37 @@ if uploaded_file is not None:
             "combination": "Kulit kombinasi: berminyak di T-zone, kering di area lain."
         }
         st.info(skin_info.get(pred_label.lower(), "Informasi tidak tersedia untuk jenis kulit ini."))
+
+        # ============ Tambahan rekomendasi ============
+        label_lower = pred_label.lower()
+
+        if "oily" in label_lower or "berminyak" in label_lower:
+            st.markdown("""
+            ### 💡 Rekomendasi Treatment untuk Kulit Berminyak
+            - ✨ **Chemical Peeling (AHA/BHA peeling)** → mengurangi minyak & membersihkan pori.  
+            - 💎 **Laser karbon / carbon peel** → mengontrol sebum & mengecilkan pori.  
+            - 💉 **Microneedling + serum niacinamide** → mengurangi bekas jerawat & produksi minyak.  
+            - 🔆 **IPL (Intense Pulsed Light)** → membantu atasi jerawat aktif.  
+            - 🧖‍♀️ **Deep cleansing facial** khusus oily skin (angkat komedo & sebum berlebih).  
+            """)
+        elif "dry" in label_lower or "kering" in label_lower:
+            st.markdown("""
+            ### 💡 Rekomendasi Treatment untuk Kulit Kering
+            - 💧 **HydraFacial** → pembersihan + infus serum hydrating.  
+            - 💉 **Infus vitamin / skin booster (HA, collagen)** → melembapkan dari dalam.  
+            - 🌬️ **Oxy facial / Oxy infusion** → memberi oksigen & serum kelembapan.  
+            - 💎 **Mesotherapy (HA, peptide)** → suntikan microdose untuk hidrasi kulit.  
+            - 🔴 **LED therapy (red light)** → memperbaiki barrier & merangsang kolagen.  
+            """)
+        elif "normal" in label_lower:
+            st.markdown("""
+            ### 💡 Rekomendasi Treatment untuk Kulit Normal
+            - 🌸 **Facial rutin** (brightening facial, hydrafacial).  
+            - ✨ **Mild chemical peel** → regenerasi sel kulit.  
+            - 💡 **Laser toning / Rejuvenation** → menjaga kecerahan.  
+            - 💉 **Microneedling ringan** → anti-aging & elastisitas.  
+            - 🩸 **PRP (Platelet Rich Plasma)** → peremajaan kulit jangka panjang.  
+            """)
+        else:
+            st.warning("⚠️ Tidak ada rekomendasi khusus untuk label ini.")
+
