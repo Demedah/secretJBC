@@ -11,6 +11,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import plotly.express as px
 import plotly.graph_objects as go
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 # ============ 1) Fungsi Ekstraksi Fitur ============
 def ekstrak_fitur_gambar(img_input):
