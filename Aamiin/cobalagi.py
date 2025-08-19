@@ -12,7 +12,7 @@ from sklearn.preprocessing import LabelEncoder
 import plotly.express as px
 import plotly.graph_objects as go
 
-# ================== EKSTRAKSI FITUR ==================
+# ============ 1) Fungsi Ekstraksi Fitur ============
 def ekstrak_fitur_gambar(img_input):
     try:
         if isinstance(img_input, str):
@@ -36,13 +36,13 @@ def ekstrak_fitur_gambar(img_input):
         correlation = graycoprops(glcm, 'correlation')[0, 0]
 
         # Histogram Warna
-        hist_b = cv2.calcHist([img], [0], None, [64], [0, 256]).flatten()
-        hist_g = cv2.calcHist([img], [1], None, [64], [0, 256]).flatten()
-        hist_r = cv2.calcHist([img], [2], None, [64], [0, 256]).flatten()
+        hist_b = cv2.calcHist([img], [0], None, [256], [0, 256]).flatten()
+        hist_g = cv2.calcHist([img], [1], None, [256], [0, 256]).flatten()
+        hist_r = cv2.calcHist([img], [2], None, [256], [0, 256]).flatten()
 
-        hist_b = hist_b / (hist_b.sum() + 1e-6)
-        hist_g = hist_g / (hist_g.sum() + 1e-6)
-        hist_r = hist_r / (hist_r.sum() + 1e-6)
+        hist_b = hist_b / hist_b.sum() if hist_b.sum() != 0 else hist_b
+        hist_g = hist_g / hist_g.sum() if hist_g.sum() != 0 else hist_g
+        hist_r = hist_r / hist_r.sum() if hist_r.sum() != 0 else hist_r
 
         fitur_hist = np.hstack([hist_b, hist_g, hist_r])
         fitur = np.hstack([contrast, dissimilarity, homogeneity, energy, correlation, fitur_hist])
@@ -50,47 +50,75 @@ def ekstrak_fitur_gambar(img_input):
     except:
         return None
 
-# ================== STREAMLIT APP ==================
-st.set_page_config(page_title="Klasifikasi Kulit Jiabao", page_icon="🧴", layout="wide")
 
-st.title("🧴 Klasifikasi Jenis Kulit Wajah - Jiabao Clinic")
-st.markdown("Aplikasi ini menggunakan **Random Forest** + **GLCM & Histogram Warna**")
-
-# ================== LOAD DATASET ==================
-if not os.path.exists("databaseJBC.csv"):
-    st.error("❌ Dataset `databaseJBC.csv` tidak ditemukan! Pastikan file tersedia.")
-    st.stop()
-
+# ============ 2) Load Dataset & Augmentasi ============
 df = pd.read_csv("databaseJBC.csv")
-st.success(f"✅ Dataset berhasil dimuat: {len(df)} sampel")
+image_dir = "Extraksi"   # folder tempat gambar disimpan
 
-# ================== TRAIN MODEL ==================
+datagen = ImageDataGenerator(
+    rotation_range=20,
+    width_shift_range=0.1,
+    height_shift_range=0.1,
+    shear_range=0.1,
+    zoom_range=0.1,
+    horizontal_flip=True,
+    fill_mode="nearest"
+)
+
 X, y = [], []
+
 for idx, row in df.iterrows():
-    img_path = os.path.join("Extraksi", row["FotoCS"])
-    if os.path.exists(img_path):
-        img = cv2.imread(img_path)
-        fitur = ekstrak_fitur_gambar(img)
-        if fitur is not None:
-            X.append(fitur)
-            y.append(row["Tekstur Kulit"])
+    file_name = row["FotoCS"]
+    label = row["Tekstur Kulit"]   
+
+    img_path = os.path.join(image_dir, file_name)
+    if not os.path.exists(img_path):
+        continue
+
+    img = cv2.imread(img_path)
+    if img is None:
+        continue
+
+    img = cv2.resize(img, (128, 128))
+
+    # fitur asli
+    fitur_asli = ekstrak_fitur_gambar(img)
+    if fitur_asli is not None:
+        X.append(fitur_asli)
+        y.append(label)
+
+    # augmentasi (5 variasi per gambar)
+    img_expanded = np.expand_dims(img, axis=0)
+    aug_iter = datagen.flow(img_expanded, batch_size=1)
+    for i in range(5):
+        aug_img = next(aug_iter)[0].astype("uint8")
+        fitur_aug = ekstrak_fitur_gambar(aug_img)
+        if fitur_aug is not None:
+            X.append(fitur_aug)
+            y.append(label)
 
 X = np.array(X, dtype=float)
 y = np.array(y)
+print("Jumlah data setelah augmentasi:", X.shape, len(y))
 
-if len(X) < 5:
-    st.error("❌ Data tidak cukup untuk melatih model.")
-    st.stop()
+# ============ 3) Label Encoding + Training ============
+if len(X) > 5:
+    le = LabelEncoder()
+    y_encoded = le.fit_transform(y)
 
-le = LabelEncoder()
-y_encoded = le.fit_transform(y)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y_encoded, test_size=0.2, random_state=42
+    )
 
-X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
-model = RandomForestClassifier(n_estimators=100, random_state=42)
-model.fit(X_train, y_train)
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
 
-y_pred = model.predict(X_test)
-acc = accuracy_score(y_test, y_pred)
+    y_pred = model.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+else:
+    model, le = None, None
+    acc = 0.0
+
 
 # ================== DASHBOARD ==================
 col1, col2 = st.columns(2)
